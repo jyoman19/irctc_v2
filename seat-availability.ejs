@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seat Availability</title>
+</head>
+<body>
+  <h2>Check Seat Availability</h2>
+
+  <% if (message) { %>
+    <p><%= message %></p>
+  <% } %>
+
+  <!-- Seat Availability Form -->
+  <form method="POST" action="/seat-availability">
+    <label for="from_station">From Station:</label>
+    <select name="from_station" required>
+      <option value="">Select Source Station</option>
+      <% stations.forEach(station => { %>
+        <option value="<%= station.station_id %>"><%= station.station_name %></option>
+      <% }); %>
+    </select>
+    <br><br>
+
+    <label for="to_station">To Station:</label>
+    <select name="to_station" required>
+      <option value="">Select Destination Station</option>
+      <% stations.forEach(station => { %>
+        <option value="<%= station.station_id %>"><%= station.station_name %></option>
+      <% }); %>
+    </select>
+    <br><br>
+
+    <label for="travel_date">Travel Date:</label>
+    <input type="date" name="travel_date" required>
+    <br><br>
+
+    <button type="submit">Check Availability</button>
+  </form>
+
+  <!-- Display train availability if available -->
+  <% if (trains && trains.length > 0) { %>
+    <h3>Available Trains:</h3>
+    <table border="1">
+      <thead>
+        <tr>
+          <th>Train Name</th>
+          <th>Available Seats</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% trains.forEach(train => { %>
+          <tr>
+            <td><%= train.train_name %></td>
+            <td><%= train.available_seats %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+
+  <br>
+  <a href="/">Back to Home</a>
+</body>
+</html>
