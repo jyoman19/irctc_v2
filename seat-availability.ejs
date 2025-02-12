@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Seat Availability</title>
-</head>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seat Availability</title>
+    <link rel="stylesheet" href="/css/style.css"> <!-- Optional: For future styling -->
+    <script defer src="/js/seat-availability.js"></script> <!-- Load external JavaScript -->
+  </head>
+  
 <body>
   <h2>Check Seat Availability</h2>
 
@@ -18,7 +21,9 @@
     <select name="from_station" required>
       <option value="">Select Source Station</option>
       <% stations.forEach(station => { %>
-        <option value="<%= station.station_id %>"><%= station.station_name %></option>
+        <option value="<%= station.station_id %>" <% if (station.station_id == from_station) { %> selected <% } %> >
+          <%= station.station_name %>
+        </option>
       <% }); %>
     </select>
     <br><br>
@@ -27,19 +32,21 @@
     <select name="to_station" required>
       <option value="">Select Destination Station</option>
       <% stations.forEach(station => { %>
-        <option value="<%= station.station_id %>"><%= station.station_name %></option>
+        <option value="<%= station.station_id %>" <% if (station.station_id == to_station) { %> selected <% } %> >
+          <%= station.station_name %>
+        </option>
       <% }); %>
     </select>
     <br><br>
 
     <label for="travel_date">Travel Date:</label>
-    <input type="date" name="travel_date" required>
+    <input type="date" name="travel_date" required value="<%= travel_date || '' %>">
     <br><br>
 
     <button type="submit">Check Availability</button>
   </form>
 
-  <!-- Display train availability if available -->
+  <!-- Display train availability -->
   <% if (trains && trains.length > 0) { %>
     <h3>Available Trains:</h3>
     <table border="1">
@@ -47,6 +54,7 @@
         <tr>
           <th>Train Name</th>
           <th>Available Seats</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody>
@@ -54,11 +62,25 @@
           <tr>
             <td><%= train.train_name %></td>
             <td><%= train.available_seats %></td>
+            <td>
+         
+                  <% if (train.available_seats > 0) { %>
+                    <a href="/book-seat?train_id=<%= train.train_id %>&from_station=<%= from_station %>&to_station=<%= to_station %>&travel_date=<%= travel_date %>">
+                      <button type="button">Book Now</button>
+                    </a>
+                 
+        
+                
+              <% } else { %>
+                <span>Not Available</span>
+              <% } %>
+            </td>
           </tr>
         <% }); %>
       </tbody>
     </table>
   <% } %>
+
 
   <br>
   <a href="/">Back to Home</a>

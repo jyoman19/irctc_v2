@@ -31,10 +31,10 @@ app.use(cookieParser());  // Add this line to enable cookie parsing
 // });
 
 const pool = new Pool({
-  user: 'jman',
+  user: 'postgres',
   host: 'localhost',
-  database: 'irctc_v2',
-  password: 'codeword',
+  database: 'irctc_jyotishman',
+  password: 'codeworld',
   port: 6500
 });
 
@@ -170,14 +170,15 @@ app.post("/add-train", authenticateAdmin, async (req, res) => {
 
 app.get("/seat-availability", async (req, res) => {
   try {
-    // Fetch all stations
     const stationsResult = await pool.query("SELECT * FROM stations");
 
-    // Render the form with stations data
     res.render("seat-availability", { 
       stations: stationsResult.rows, 
-      trains: [],  // Pass an empty array for trains initially
-      message: null
+      trains: [], 
+      message: null,
+      from_station: null, 
+      to_station: null, 
+      travel_date: null
     });
   } catch (error) {
     res.status(500).json({ message: "Error fetching stations", error: error.message });
@@ -188,77 +189,90 @@ app.post("/seat-availability", async (req, res) => {
   const { from_station, to_station, travel_date } = req.body;
 
   if (from_station === to_station) {
+    const stationsResult = await pool.query("SELECT * FROM stations");
     return res.render("seat-availability", {
-      stations: [], 
+      stations: stationsResult.rows, 
       trains: [], 
-      message: "Source and Destination cannot be the same!"
+      message: "Source and Destination cannot be the same!",
+      from_station, 
+      to_station, 
+      travel_date
     });
   }
 
   try {
-    // Query to fetch seat availability
     const result = await pool.query(
       "SELECT t.train_id, t.train_name, sa.available_seats FROM seat_availability sa JOIN trains t ON sa.route_id = t.train_id WHERE sa.from_station_id = $1 AND sa.to_station_id = $2 AND sa.travel_date = $3",
       [from_station, to_station, travel_date]
     );
 
-    // If no trains available
-    if (result.rows.length === 0) {
-      return res.render("seat-availability", {
-        stations: [], 
-        trains: [], 
-        message: "No trains available for this route"
-      });
-    }
+    const stationsResult = await pool.query("SELECT * FROM stations");
 
-    // Render with trains data
     res.render("seat-availability", {
-      stations: [], 
-      trains: result.rows,  // Pass the available trains
-      message: null
+      stations: stationsResult.rows, 
+      trains: result.rows,  
+      message: result.rows.length ? null : "No trains available for this route",
+      from_station, 
+      to_station, 
+      travel_date
     });
   } catch (error) {
     res.status(500).json({ message: "Error fetching availability", error: error.message });
   }
 });
 
-
-// ✅ 5. Book a Seat (Handles Concurrency)
+// ✅ Booking Route
 app.post("/book-seat", authenticateToken, async (req, res) => {
   const { route_id, from_station_id, to_station_id, travel_date, seats_booked } = req.body;
   const user_id = req.user.userId;
-  
+
+  // Convert inputs to integers
+  const parsedRouteId = parseInt(route_id, 10);
+  const parsedFromStation = parseInt(from_station_id, 10);
+  const parsedToStation = parseInt(to_station_id, 10);
+  const parsedSeatsBooked = parseInt(seats_booked, 10);
+  const total_amount = parsedSeatsBooked * 100;
+
+  // Validate input
+  if (isNaN(parsedRouteId) || isNaN(parsedFromStation) || isNaN(parsedToStation) || isNaN(parsedSeatsBooked)) {
+    return res.status(400).json({ message: "Invalid input: All fields must be numbers." });
+  }
+
   try {
-    await pool.query("BEGIN"); // Start transaction
-
-    // Lock row to prevent race conditions
-    const availability = await pool.query(
-      "SELECT available_seats FROM seat_availability WHERE route_id = $1 AND from_station_id = $2 AND to_station_id = $3 AND travel_date = $4 FOR UPDATE",
-      [route_id, from_station_id, to_station_id, travel_date]
+    const result = await pool.query(
+      "SELECT book_ticket($1, $2, $3, $4, $5, $6, $7) AS message",
+      [user_id, parsedRouteId, parsedFromStation, parsedToStation, travel_date, parsedSeatsBooked, total_amount]
     );
 
-    if (availability.rows.length === 0 || availability.rows[0].available_seats < seats_booked) {
-      await pool.query("ROLLBACK");
-      return res.status(400).json({ message: "Not enough seats available" });
-    }
-
-    // Reduce available seats
-    await pool.query(
-      "UPDATE seat_availability SET available_seats = available_seats - $1 WHERE route_id = $2 AND from_station_id = $3 AND to_station_id = $4 AND travel_date = $5",
-      [seats_booked, route_id, from_station_id, to_station_id, travel_date]
-    );
-
-    // Confirm booking
-    await pool.query(
-      "INSERT INTO bookings (user_id, route_id, from_station_id, to_station_id, travel_date, seats_booked, booking_status, total_amount) VALUES ($1, $2, $3, $4, $5, $6, 'confirmed', $7)",
-      [user_id, route_id, from_station_id, to_station_id, travel_date, seats_booked, seats_booked * 100]
-    );
-
-    await pool.query("COMMIT"); // Commit transaction
-    res.json({ message: "Booking successful!" });
+    const message = result.rows[0].message;
+    res.redirect("/seat-availability");  // Redirect to availability page after booking
   } catch (error) {
-    await pool.query("ROLLBACK"); // Rollback on error
     res.status(500).json({ message: "Booking failed", error: error.message });
+  }
+});
+
+
+
+app.get("/book-seat", authenticateToken, async (req, res) => {
+  try {
+    // Fetch all stations and trains
+    const stationsResult = await pool.query("SELECT * FROM stations");
+    const trainsResult = await pool.query("SELECT * FROM trains");
+
+    // Get query params (if coming from seat availability)
+    const { train_id, from_station, to_station, travel_date } = req.query;
+
+    res.render("book-seat", {
+      stations: stationsResult.rows,
+      trains: trainsResult.rows,
+      selected_train: train_id || "", 
+      from_station: from_station || "", 
+      to_station: to_station || "", 
+      travel_date: travel_date || "", 
+      message: null
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching data", error: error.message });
   }
 });
 

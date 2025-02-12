@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book Your Train Seat</title>
+</head>
+<body>
+  <h2>Book Your Train Seat</h2>
+
+  <% if (message) { %>
+    <p><%= message %></p>
+  <% } %>
+
+  <!-- Booking Form -->
+  <form method="POST" action="/book-seat">
+    <!-- Train Selection -->
+    <label for="route_id">Train:</label>
+    <select name="route_id" required>
+      <option value="">Select a Train</option>
+      <% trains.forEach(train => { %>
+        <option value="<%= train.train_id %>" <% if (train.train_id == selected_train) { %> selected <% } %> >
+          <%= train.train_name %>
+        </option>
+      <% }); %>
+    </select>
+    <br><br>
+
+    <!-- Source Station -->
+    <label for="from_station_id">From Station:</label>
+    <select name="from_station_id" required>
+      <option value="">Select Source Station</option>
+      <% stations.forEach(station => { %>
+        <option value="<%= station.station_id %>" <% if (station.station_id == from_station) { %> selected <% } %> >
+          <%= station.station_name %>
+        </option>
+      <% }); %>
+    </select>
+    <br><br>
+
+    <!-- Destination Station -->
+    <label for="to_station_id">To Station:</label>
+    <select name="to_station_id" required>
+      <option value="">Select Destination Station</option>
+      <% stations.forEach(station => { %>
+        <option value="<%= station.station_id %>" <% if (station.station_id == to_station) { %> selected <% } %> >
+          <%= station.station_name %>
+        </option>
+      <% }); %>
+    </select>
+    <br><br>
+
+    <!-- Travel Date -->
+    <label for="travel_date">Travel Date:</label>
+    <input type="date" name="travel_date" required value="<%= travel_date || '' %>">
+    <br><br>
+
+    <!-- Seats to Book -->
+    <label for="seats_booked">Seats to Book:</label>
+    <input type="number" name="seats_booked" required min="1">
+    <br><br>
+
+    <button type="submit">Confirm Booking</button>
+  </form>
+
+  <br>
+  <a href="/">Back to Home</a>
+</body>
+</html>
